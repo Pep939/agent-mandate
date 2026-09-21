@@ -40,11 +40,12 @@ that plainly than imply otherwise.
 - **Evidence.** A tampered ledger that still verifies: an edited, deleted,
   reordered or truncated event chain that `verify_ledger` reports as clean.
   A forged evidence bundle that passes `verify_bundle`. **One instance of this
-  is already known and open (issue #1, found 2026-09-21):** `verify_bundle`
-  takes the public key from inside the bundle under test, so a bundle signed
-  with an attacker's own keypair verifies clean. Please do not re-report that
-  one; a *different* forgery, or a truncation that survives once the key is
-  supplied out of band, is still very much in scope.
+  was found and fixed on 2026-09-21 (issue #1):** `verify_bundle` used to take
+  the public key from inside the bundle under test, so a bundle signed with an
+  attacker's own keypair verified clean. It now requires the expected key as an
+  argument and fails closed without one. A *different* forgery, or a truncation
+  that survives once the key is supplied out of band, is still very much in
+  scope.
 - **Replay and idempotency.** Any path where one request produces two
   commitments, or a retry produces a different answer than the original.
 - **Disclosure.** A field leaving the system that the mandate's allow-list

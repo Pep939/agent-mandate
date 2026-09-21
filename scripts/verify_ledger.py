@@ -5,7 +5,15 @@ number, chain link and summary hash (specs/evidence-bundle.md). No database
 access, no store: the bundle is the only input.
 
 Usage:
-  uv run scripts/verify_ledger.py <bundle.json> [checksums.sha256]
+  uv run scripts/verify_ledger.py --public-key <base64url> <bundle.json> [checksums.sha256]
+
+`--public-key` is the signer's public key as YOU already know it, obtained out
+of band — from the counterparty's published key, a prior exchange, whatever your
+trust path is. It is required. Verifying against the key carried inside the
+bundle would only prove the bundle is self-consistent: anyone can generate a
+keypair, sign a fabricated history with it, and embed the matching public key
+(issue #1). Supplying the wrong key makes every signature check fail, which is
+the correct outcome.
 
 Exit codes: 0 = verified, 1 = verification failed, 2 = usage/read error.
 """
@@ -46,6 +54,15 @@ def main() -> int:
     parser.add_argument(
         "checksums", nargs="?", default=None, help="optional path to checksums.sha256"
     )
+    parser.add_argument(
+        "--public-key",
+        required=True,
+        metavar="BASE64URL",
+        help=(
+            "the signer's public key, known out of band (base64url, unpadded). "
+            "Required: a key read from the bundle itself proves nothing."
+        ),
+    )
     args = parser.parse_args()
 
     bundle_path = Path(args.bundle)
@@ -64,7 +81,7 @@ def main() -> int:
     if args.checksums is not None:
         problems.extend(_verify_checksums(bundle_path, Path(args.checksums).read_text()))
 
-    report = verify_bundle(bundle)
+    report = verify_bundle(bundle, expected_key=args.public_key)
     failed = [c for c in report.checks if not c.ok]
     for check in failed:
         print(f"FAIL {check.name}: {check.detail}", file=sys.stderr)

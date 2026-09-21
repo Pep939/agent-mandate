@@ -97,7 +97,7 @@ def main() -> int:
     (out / "timeline.md").write_text(render_timeline(bundle), encoding="utf-8")
     (out / "checksums.sha256").write_text(render_checksums(bundle), encoding="utf-8")
 
-    report = verify_bundle(bundle)
+    report = verify_bundle(bundle, expected_key=signer.public_key)
     failed = [c for c in report.checks if not c.ok]
     for check in failed:
         print(f"FAIL {check.name}: {check.detail}", file=sys.stderr)

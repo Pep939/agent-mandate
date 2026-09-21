@@ -92,7 +92,7 @@ class TestBuildBundle:
         )
         assert bundle.verification.chain_head_event_hash == "0" * 64
         assert bundle.verification.event_count == 0
-        assert verify_bundle(bundle).ok
+        assert verify_bundle(bundle, expected_key=signer.public_key).ok
 
     def test_gateway_public_key_round_trips(self):
         from mandate.crypto.signing import b64url_decode, load_public_key
@@ -187,7 +187,7 @@ class TestVerifyBundle:
         lie = bundle.model_copy(
             update={"deal": bundle.deal.model_copy(update={"state": "CANCELLED"})}
         )
-        report = verify_bundle(lie)
+        report = verify_bundle(lie, expected_key=signer.public_key)
         assert not report.ok
         assert any(c.name == "deal_state_divergent" and not c.ok for c in report.checks)
 
@@ -203,7 +203,7 @@ class TestVerifyBundle:
             signer=signer,
         )
         bad = bundle.model_copy(update={"schema_version": "9.9"})
-        report = verify_bundle(bad)
+        report = verify_bundle(bad, expected_key=signer.public_key)
         assert not report.ok
         assert any(c.name == "schema_version" and not c.ok for c in report.checks)
 
@@ -224,7 +224,7 @@ class TestVerifyBundle:
         # it is the witness for the re-export case, see test_tamper.py
         # TestSuiteC_EvidenceBundleTamper.)
         truncated = bundle.model_copy(update={"events": events[:1]})
-        report = verify_bundle(truncated)
+        report = verify_bundle(truncated, expected_key=signer.public_key)
         assert not report.ok
         names = {c.name for c in report.checks if not c.ok}
         assert "event_count" in names and "chain_sha256" in names
@@ -242,7 +242,7 @@ class TestSummarySignature:
             revocations=[],
             signer=signer,
         )
-        report = verify_bundle(bundle)
+        report = verify_bundle(bundle, expected_key=signer.public_key)
         assert any(c.name == "summary_signature" and c.ok for c in report.checks)
 
     def test_signature_by_different_key_fails(self):
@@ -274,7 +274,7 @@ class TestSummarySignature:
                 )
             }
         )
-        report = verify_bundle(forged)
+        report = verify_bundle(forged, expected_key=signer.public_key)
         assert not report.ok
         assert any(c.name == "summary_signature" and not c.ok for c in report.checks)
 
@@ -296,6 +296,119 @@ class TestSummarySignature:
                 )
             }
         )
-        report = verify_bundle(lie)
+        report = verify_bundle(lie, expected_key=signer.public_key)
         assert not report.ok
         assert any(c.name == "summary_signature" and not c.ok for c in report.checks)
+
+
+class TestVerifierTrustsOnlyTheSuppliedKey:
+    """Issue #1: the key must come from outside the artifact under test.
+
+    Before the fix, `verify_bundle` read the public key out of the bundle it was
+    checking, so a chain fabricated with an attacker's own keypair verified
+    clean. Every signature inside such a bundle is genuinely consistent -- what
+    was missing was any binding to a key the verifier independently trusts.
+    """
+
+    def test_wholly_fabricated_bundle_fails_against_the_trusted_key(self):
+        from mandate.domain.deals import Deal
+        from mandate.domain.events import GENESIS_HASH, EventType
+        from mandate.domain.input import ActorKind
+        from mandate.ledger.chain import build_event
+
+        _store, _deal, _current, honest, _pi = _seeded()
+        attacker = make_signer()
+
+        deal_id = new_ulid()
+        events = []
+        previous = GENESIS_HASH
+        fabricated = [
+            (
+                EventType.STATE_TRANSITION,
+                ActorKind.COUNTERPARTY,
+                "counterparty-agent",
+                {
+                    "event": "counterparty_accepted",
+                    "from_state": "NEGOTIATING",
+                    "to_state": "AGREED",
+                },
+            ),
+            (
+                EventType.APPROVAL,
+                ActorKind.PRINCIPAL,
+                "the-victim",
+                {"operation": "granted", "amount_minor": 5_000_000, "currency": "USD"},
+            ),
+        ]
+        for index, (event_type, actor_kind, actor_id, payload) in enumerate(fabricated):
+            event = build_event(
+                event_id=new_ulid(),
+                deal_id=deal_id,
+                sequence_number=index,
+                event_type=event_type,
+                actor_kind=actor_kind,
+                actor_id=actor_id,
+                authority_record_id=None,
+                previous_event_hash=previous,
+                payload=payload,
+                occurred_at=NOW,
+                recorded_at=RECORDED,
+                signer=attacker,
+            )
+            events.append(event)
+            previous = event.event_hash
+
+        forged = build_bundle(
+            exported_at=RECORDED,
+            deal=Deal(
+                deal_id=deal_id,
+                state=DealState.AGREED,
+                negotiated_rounds=1,
+                committed_minor=5_000_000,
+                open_disputes=0,
+                open_approvals=0,
+            ),
+            deal_created_at=PAST,
+            events=events,
+            records=[],
+            revocations=[],
+            signer=attacker,
+        )
+
+        # Internally flawless -- this is exactly why reading the key from the
+        # bundle was useless. Nothing here is inconsistent.
+        assert verify_bundle(forged, expected_key=attacker.public_key).ok
+
+        # Against the key a verifier actually trusts, it collapses.
+        report = verify_bundle(forged, expected_key=honest.public_key)
+        assert not report.ok
+        assert any(c.name == "gateway_public_key" and not c.ok for c in report.checks)
+        assert any(c.name.startswith("event_") and not c.ok for c in report.checks)
+
+    def test_expected_key_accepts_base64url(self):
+        store, deal, current, signer, pi = _seeded()
+        bundle = build_bundle(
+            exported_at=RECORDED,
+            deal=current,
+            deal_created_at=PAST,
+            events=store.events_for(deal.deal_id),
+            records=[pi.authority.record],
+            revocations=[],
+            signer=signer,
+        )
+        assert verify_bundle(bundle, expected_key=bundle.gateway_public_key.key_b64url).ok
+
+    def test_unusable_expected_key_fails_closed(self):
+        store, deal, current, signer, pi = _seeded()
+        bundle = build_bundle(
+            exported_at=RECORDED,
+            deal=current,
+            deal_created_at=PAST,
+            events=store.events_for(deal.deal_id),
+            records=[pi.authority.record],
+            revocations=[],
+            signer=signer,
+        )
+        report = verify_bundle(bundle, expected_key="not a key")
+        assert not report.ok
+        assert any(c.name == "expected_public_key" and not c.ok for c in report.checks)

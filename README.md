@@ -19,15 +19,19 @@
 > are named in `docs/threat-model.md` and `SECURITY.md` rather than hidden. It is
 > published to be argued with.
 
-> [!CAUTION]
-> **Known open defect in the verifier, found 2026-09-21 — do not rely on
-> `verify_ledger.py` as an independent check yet.** `verify_bundle()` reads the
-> public key out of the same bundle it is verifying, so a bundle fabricated with
-> an attacker's own keypair passes: the CLI prints `VERIFIED (18/18 checks
-> passed)` and exits 0. The hash chain and the signatures are sound; what is
-> missing is any binding to a key the verifier independently trusts. Until
-> `verify_bundle` takes the expected key as a required argument, verification
-> only proves a bundle is *internally* consistent. Tracked as issue #1.
+> [!IMPORTANT]
+> **Verification needs the signer's public key, supplied by you.**
+> `verify_bundle(bundle, expected_key=...)` and
+> `verify_ledger.py --public-key <base64url>` both require it and fail closed
+> without it. Get the key out of band — from the counterparty's published key,
+> a prior exchange, whatever your trust path is.
+>
+> This was a real defect, found and fixed on 2026-09-21 (issue #1). The verifier
+> used to read the key out of the bundle it was checking, so a bundle fabricated
+> with an attacker's own keypair verified clean: `VERIFIED (18/18 checks
+> passed)`, exit 0. Nothing was wrong with the hash chain or the signatures —
+> what was missing was any binding to a key the verifier independently trusts.
+> The same fabricated bundle now reports `FAILED (14/19)`.
 
 When two agents act for two different people or businesses, someone has to answer
 four questions before anything binding happens: *who authorized this, what exactly

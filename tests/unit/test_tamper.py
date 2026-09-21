@@ -143,7 +143,7 @@ class TestSuiteB_DbTamperDetected:
             signer=signer,
         )
         truncated = bundle.model_copy(update={"events": events[:1]})
-        report = verify_bundle(truncated)
+        report = verify_bundle(truncated, expected_key=signer.public_key)
         assert not report.ok
 
     def test_forged_append_detected(self):
@@ -203,23 +203,23 @@ class TestSuiteC_EvidenceBundleTamper:
         return bundle, signer
 
     def test_valid_bundle_passes(self):
-        bundle, _ = self._bundle()
-        report = verify_bundle(bundle)
+        bundle, signer = self._bundle()
+        report = verify_bundle(bundle, expected_key=signer.public_key)
         assert report.ok
         assert report.first_failure() is None
 
     def test_byte_flip_in_event_payload_fails(self):
-        bundle, _ = self._bundle()
+        bundle, signer = self._bundle()
         ev = bundle.events[0]  # an ALLOW decision
         bad = ev.model_copy(update={"payload": {**ev.payload, "outcome": "deny"}})
         tampered = bundle.model_copy(
             update={"events": [bad if e.event_id == ev.event_id else e for e in bundle.events]}
         )
-        report = verify_bundle(tampered)
+        report = verify_bundle(tampered, expected_key=signer.public_key)
         assert not report.ok
 
     def test_swap_revocation_fails(self):
-        bundle, _ = self._bundle()
+        bundle, signer = self._bundle()
         # swap in a revocation for a different record
         from mandate.domain.authority import Revocation, SignatureBlock
 
@@ -231,14 +231,14 @@ class TestSuiteC_EvidenceBundleTamper:
             signature=SignatureBlock(algorithm="ed25519", key_id="k", value="v"),
         )
         tampered = bundle.model_copy(update={"revocations": [other]})
-        report = verify_bundle(tampered)
+        report = verify_bundle(tampered, expected_key=signer.public_key)
         assert not report.ok
         assert any(c.name == "revocations_sha256" and not c.ok for c in report.checks)
 
     def test_swapped_record_fails(self):
-        bundle, _ = self._bundle()
+        bundle, signer = self._bundle()
         swapped = bundle.model_copy(update={"authority_records": [make_input().authority.record]})
-        report = verify_bundle(swapped)
+        report = verify_bundle(swapped, expected_key=signer.public_key)
         assert not report.ok
         assert any(c.name == "records_sha256" and not c.ok for c in report.checks)
 
@@ -271,6 +271,6 @@ class TestSuiteC_EvidenceBundleTamper:
         reexported = bundle.model_copy(
             update={"events": truncated, "verification": reexported_summary}
         )
-        report = verify_bundle(reexported)
+        report = verify_bundle(reexported, expected_key=signer.public_key)
         assert not report.ok
         assert {c.name for c in report.checks if not c.ok} == {"summary_signature"}

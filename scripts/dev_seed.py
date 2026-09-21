@@ -222,7 +222,7 @@ def main() -> int:
     (out / "timeline.md").write_text(render_timeline(bundle), encoding="utf-8")
     (out / "checksums.sha256").write_text(render_checksums(bundle), encoding="utf-8")
 
-    report = verify_bundle(bundle)
+    report = verify_bundle(bundle, expected_key=signer.public_key)
     print(f"\nfinal state: {final_deal.state.value} (committed {final_deal.committed_minor} cents)")
     print(f"events: {len(events)}")
     failed = 0

@@ -119,7 +119,7 @@ class TestFullFlow:
             revocations=[],
             signer=signer,
         )
-        assert verify_bundle(bundle).ok
+        assert verify_bundle(bundle, expected_key=signer.public_key).ok
 
 
 class TestApprovalLifecycle:

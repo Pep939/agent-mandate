@@ -342,8 +342,17 @@ def _verify_summary_signature(
     return [BundleCheck("summary_signature", True, "ok")]
 
 
-def verify_bundle(bundle: EvidenceBundle) -> VerifyReport:
-    """The normative verification procedure (specs/evidence-bundle.md)."""
+def verify_bundle(bundle: EvidenceBundle, *, expected_key: Ed25519PublicKey | str) -> VerifyReport:
+    """The normative verification procedure (specs/evidence-bundle.md).
+
+    `expected_key` is the signer's public key as the verifier already knows it —
+    an `Ed25519PublicKey`, or its base64url raw form. It is **required and has no
+    default**, because the key must come from outside the artifact under test.
+    Reading it out of `bundle.gateway_public_key` would only prove the bundle is
+    internally consistent: anyone can generate a keypair, sign a fabricated chain
+    with it, and embed the matching public key (issue #1). The bundle's own claim
+    is still checked, but every signature is verified against `expected_key`.
+    """
     checks: list[BundleCheck] = []
 
     def add(name: str, ok: bool, detail: str = "") -> None:
@@ -352,11 +361,23 @@ def verify_bundle(bundle: EvidenceBundle) -> VerifyReport:
     add("schema_version", bundle.schema_version == SCHEMA_VERSION, f"got {bundle.schema_version!r}")
 
     public_key: Ed25519PublicKey | None
-    try:
-        public_key = load_public_key(b64url_decode(bundle.gateway_public_key.key_b64url))
-    except ValueError as exc:
-        public_key = None
-        add("gateway_public_key", False, str(exc))
+    if isinstance(expected_key, Ed25519PublicKey):
+        public_key = expected_key
+    else:
+        try:
+            public_key = load_public_key(b64url_decode(expected_key))
+        except ValueError as exc:
+            public_key = None
+            add("expected_public_key", False, f"supplied key is unusable: {exc}")
+
+    if public_key is not None:
+        expected_b64url = b64url_encode(public_key_raw(public_key))
+        add(
+            "gateway_public_key",
+            bundle.gateway_public_key.key_b64url == expected_b64url,
+            "the bundle names a different signing key than the one supplied; "
+            "every signature below is checked against the supplied key",
+        )
     if public_key is not None:
         previous = GENESIS_HASH
         for index, event in enumerate(bundle.events):

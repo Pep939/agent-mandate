@@ -71,13 +71,29 @@ no bundle format can do better than the key it is anchored to. External
 anchoring (on-chain anchor, third-party timestamping) is out of scope for
 v0.1 (spec, "Out of scope").
 
+> **Amended 2026-09-21 (issue #1).** The boundary as originally written was
+> wrong, and the error mattered. It named the danger as an attacker holding
+> the chain key, when the actual precondition is that **the verifier must
+> already know which key is the gateway's**. `verify_bundle` did not: it read
+> the key out of the bundle under test, so an attacker needed no key of ours
+> at all. They generated their own, signed a fabricated chain with it,
+> embedded the matching public key, and the bundle verified clean — 18/18
+> checks, exit 0. The C4 truncation test could not catch this, because it
+> reuses the original key and so never varies the axis that was broken.
+>
+> `verify_bundle` now takes a required `expected_key` and
+> `verify_ledger.py` a required `--public-key`, both failing closed when
+> absent. The summary signature still does what this ADR claims; what it
+> never did, and cannot do alone, is establish *whose* key signed it.
+
 ## Consequences
 
 - Exporting a bundle now requires the chain key. This is correct by design:
   the gateway is the only party that should produce bundles for its ledger;
   a recipient verifies with the public key alone.
-- `verify_bundle` reports one more check per bundle (e.g. 18/18 for a
-  2-event deal; 133/133 for the `dev_seed` full lifecycle).
+- `verify_bundle` reports one more check per bundle (e.g. 19/19 for a
+  2-event deal once the issue-#1 `gateway_public_key` check is included;
+  it was 18/18 as originally shipped).
 - New tests: `TestSummarySignature` (genuine verifies; foreign-key signature
   fails; key_id mismatch fails) and the decisive tamper test — a re-exported
   truncation fails with `{summary_signature}` as the **only** failing check

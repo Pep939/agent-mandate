@@ -73,13 +73,24 @@ what is present.
 ## Verification procedure (normative)
 
 `verify_bundle` (pure, in `src/mandate/ledger/evidence.py`) and
-`scripts/verify_ledger.py` (subprocess wrapper) both perform, in order:
+`scripts/verify_ledger.py` (subprocess wrapper) both perform, in order.
+
+**The verifying key is an input to the procedure, never a field of the
+bundle.** `verify_bundle` takes a required `expected_key`, and
+`verify_ledger.py` a required `--public-key`; the verifier obtains it out of
+band from whatever its trust path is. This is not a detail. Verifying a
+bundle against the key it carries proves only that the bundle is internally
+consistent, which anyone can arrange by generating a keypair, signing a
+fabricated chain and embedding the matching public key (issue #1, fixed
+2026-09-21).
 
 1. Parse `bundle.json`; reject unless `schema_version == "0.2"`
    (check `schema_version`).
-2. Rebuild the gateway public key from `gateway_public_key` with
-   `load_public_key` (check `gateway_public_key`). If this fails, the event
-   and summary-signature checks below are skipped and the bundle fails.
+2. Load `expected_key` (check `expected_public_key` if it is unusable), then
+   compare `gateway_public_key.key_b64url` against it (check
+   `gateway_public_key`). A mismatch is reported and verification continues
+   against `expected_key`, so the event signatures below fail too — the
+   report names both the wrong key and every signature it invalidates.
 3. For each event, in listed order:
    a. recompute `payload_hash` = SHA-256 of canonical bytes of the stored
       `payload`; mismatch → fail `payload_hash_mismatch`;
