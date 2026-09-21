@@ -23,7 +23,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from mandate.crypto.canonicalization import canonical_bytes
 from mandate.crypto.signing import (
@@ -104,6 +104,13 @@ class ProposalPayload(BaseModel):
     _v_amount_minor = field_validator("amount_minor")(validate_amount_minor)
 
 
+MAX_NOTE_CHARS = 4096
+"""Upper bound on a counterparty note. It is attacker-chosen text arriving off
+the wire, and it was previously unbounded — a peer could hand over any volume of
+it. The value is a boundary limit, not a domain rule: the note's digest is what
+reaches an event (see `ledger.payloads.transition_payload`)."""
+
+
 class CounterpartyEventPayload(BaseModel):
     """A boundary event from the peer gateway (e.g. `quote_received`)."""
 
@@ -111,7 +118,7 @@ class CounterpartyEventPayload(BaseModel):
 
     deal_id: str
     event: str
-    note: str = ""
+    note: str = Field(default="", max_length=MAX_NOTE_CHARS)
 
     _v_deal_id = field_validator("deal_id")(_validate_ulid)
 

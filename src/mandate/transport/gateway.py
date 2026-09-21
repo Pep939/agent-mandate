@@ -525,6 +525,36 @@ def _process_message(state: GatewayState, env: WireEnvelope) -> tuple[int, dict[
     return status, body
 
 
+async def _read_bounded_body(request: Request) -> bytes | None:
+    """Read at most MAX_BODY_BYTES, stopping as soon as the limit is passed.
+
+    `await request.body()` accumulates every chunk before returning, so a size
+    check on its result bounds nothing: an unauthenticated sender could stream
+    an arbitrarily large body and the process would hold all of it before the
+    413 was written. The size stage deliberately runs before signature
+    verification, so this path is reachable by anyone who can reach the port.
+
+    Returns the body, or None if it exceeds the limit -- in which case the rest
+    of the request is never read.
+    """
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            if int(declared) > MAX_BODY_BYTES:
+                return None
+        except ValueError:
+            return None
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > MAX_BODY_BYTES:
+            return None
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def create_gateway_app(state: GatewayState) -> FastAPI:
     app = FastAPI(title="mandate wire gateway")
 
@@ -534,12 +564,12 @@ def create_gateway_app(state: GatewayState) -> FastAPI:
 
     @app.post("/messages")
     async def messages(request: Request) -> JSONResponse:
-        body = await request.body()
-        if len(body) > MAX_BODY_BYTES:
+        body = await _read_bounded_body(request)
+        if body is None:
             status, content = _error(413, "message body exceeds the wire size limit")
             return JSONResponse(status_code=status, content=content)
         try:
-            raw = await request.json()
+            raw = json.loads(body)
         except Exception:
             status, content = _error(400, "message body is not valid JSON")
             return JSONResponse(status_code=status, content=content)

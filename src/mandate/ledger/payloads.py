@@ -6,6 +6,8 @@ counterparty text, LLM output or secrets (brief §13, invariant 11/12).
 
 from __future__ import annotations
 
+import hashlib
+
 from mandate.domain.approvals import ApprovalRecord
 from mandate.domain.authority import Revocation
 from mandate.domain.content import ContentClaims
@@ -111,7 +113,15 @@ def transition_payload(
     else:
         payload["command_id"] = command_id
         if note:
-            payload["note"] = note
+            # The digest, never the text. `note` is attacker-chosen: it arrives
+            # unmodified off the wire from the counterparty gateway. Storing it
+            # raw put untrusted text — injection strings, personal data, any
+            # volume of it — permanently into an append-only store with no
+            # redaction path, and shipped it inside every exported evidence
+            # bundle. That contradicts the doctrine at the top of this module
+            # and invariants 11/12. The full text is carried by the MESSAGE
+            # event's screen answer; this binds the transition to it.
+            payload["note_sha256"] = hashlib.sha256(note.encode("utf-8")).hexdigest()
     return payload
 
 

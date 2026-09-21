@@ -10,7 +10,8 @@ Two facts about this repo sat next to each other until now.
 **One: nothing in the system reads the meaning of anything.** A proposal is
 six structured fields. `AuthorityRecord.purpose` is signed and never
 evaluated. A counterparty `note` is signed into a chain event and never
-parsed. `disclosure_fields` — the mechanism invariant 9 rests on — is a list
+parsed. (Since the 2026-09-21 security review the event carries the note's
+`note_sha256`, not the text; the point stands either way — nothing reads it.) `disclosure_fields` — the mechanism invariant 9 rests on — is a list
 of tokens the **agent declares about itself**, checked by set membership
 against the mandate's allow-list. Nobody checks the text.
 
