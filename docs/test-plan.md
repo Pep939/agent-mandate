@@ -100,9 +100,10 @@ A "sloppy/malicious agent" fixture set — proposals only, no live agent yet:
   is read — the same path `scripts/two_gateways.py` runs on every response.
 - **Delivered in Phase 7** (integration pilot, ADR-0013; `src/mandate/pilot/` +
   `tests/integration/test_shadow_pilot.py`): a self-run shadow pilot drives a
-  synthetic, realistic field-service day (six deals — standard paid call,
+  synthetic, realistic field-service day (seven deals — standard paid call,
   over-cap grant, over-cap deny, cumulative-cap change order,
-  dispute-during-acceptance, and a misbehaving agent) through the real console
+  dispute-during-acceptance, a misbehaving agent, and the content-screen deal
+  added by ADR-0016) through the real console
   + policy + ledger over HTTP, with a human grant/deny on every approval. The
   11 tests pin the portfolio: expected terminal state per deal, per-deal
   `verify_chain`, **no autonomous commit** (no state change on an

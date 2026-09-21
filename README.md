@@ -15,8 +15,9 @@
 > [!WARNING]
 > **v0.1, research-grade. Do not deploy this to protect anything real yet.**
 > The console is loopback-only with no TLS, the wire has no PKI, and three threat-model
-> gaps are open by decision. They are named in `docs/threat-model.md` and `SECURITY.md`
-> rather than hidden. It is published to be argued with.
+> gaps are tracked by decision — G1 mitigated but not closed, G2 and G3 still open. They
+> are named in `docs/threat-model.md` and `SECURITY.md` rather than hidden. It is
+> published to be argued with.
 
 When two agents act for two different people or businesses, someone has to answer
 four questions before anything binding happens: *who authorized this, what exactly
@@ -213,7 +214,7 @@ Each is self-contained and exits 0 on success.
 ```bash
 uv run scripts/sim_agents.py      # two agents + a principal through the console
 uv run scripts/two_gateways.py    # two separate-machine gateways over real HTTP
-uv run scripts/shadow_pilot.py    # the six-deal shadow pilot, with its evidence report
+uv run scripts/shadow_pilot.py    # the seven-deal shadow pilot, with its evidence report
 ```
 
 ## Layout
@@ -254,10 +255,11 @@ can never make it more permissive.
 
 ## Contributing and security
 
-Disagreement is the point. The ADRs in `docs/decisions/` each end with "the
-part worth poking"; `docs/ADR-digest.md` is the one-screen version. If a
-decision looks wrong, open an issue saying which and what you would change —
-that becomes an amendment or a superseding ADR.
+Disagreement is the point. `docs/ADR-digest.md` is the one-screen version of
+every decision in `docs/decisions/`, and its last column — "the part worth
+poking" — names the weakest point of each one. If a decision looks wrong, open
+an issue saying which and what you would change; that becomes an amendment or a
+superseding ADR.
 
 Found a security problem? **Do not open a public issue.** Use the Security
 tab → *Report a vulnerability*. `SECURITY.md` says what is in scope, what is
