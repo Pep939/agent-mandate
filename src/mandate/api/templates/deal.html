@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Deal {{ deal_id[:12] }}&hellip;</h1>
+<p>
+  State: <span class="badge">{{ deal.state.value }}</span>
+  &middot; Committed (minor): {{ deal.committed_minor }}
+  &middot; Mandate: {{ mandate_state }}
+</p>
+<p>
+  <a href="/deals/{{ deal_id }}/propose">Propose an action</a>
+  &middot; <a href="/deals/{{ deal_id }}/timeline">Timeline</a>
+</p>
+
+<h2>Open approvals</h2>
+{% if approvals %}
+  {% for row in approvals %}
+  {% set a = row.approval %}
+  {% set s = row.screen %}
+  <p>
+    <strong>{{ a.action }}</strong>
+    {% if a.amount_minor is not none %}({{ a.amount_minor }} {{ a.currency }}){% endif %}
+    &mdash; {{ a.reason_code.value }}
+    {% if s %}
+    <br>
+    <small>
+      Content screen ({{ s.screener }}):
+      {% if not s.available %}
+        <strong>could not check this message</strong> &mdash; read it yourself before granting.
+      {% else %}
+        {% if s.detected %}reveals {{ s.detected | join(", ") }}{% else %}no sensitive fields detected{% endif %}
+        &middot; instruction-like {{ s.hostility_pct }}%
+        &middot; persuasive {{ s.persuasion_pct }}%
+        &middot; urgency: {{ s.urgency_label }}
+      {% endif %}
+    </small>
+    {% endif %}
+    <form method="post" action="/deals/{{ deal_id }}/approvals/{{ a.approval_id }}/decision">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="operation" value="granted">
+      <button type="submit">Grant</button>
+    </form>
+    <form method="post" action="/deals/{{ deal_id }}/approvals/{{ a.approval_id }}/decision">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="operation" value="denied">
+      <button type="submit">Deny</button>
+    </form>
+  </p>
+  {% endfor %}
+{% else %}
+  <p>No open approvals.</p>
+{% endif %}
+
+<h2>Record a boundary event</h2>
+<form method="post" action="/deals/{{ deal_id }}/boundary">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <select name="event">
+    {% for e in boundary_events %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
+  </select>
+  <input type="text" name="note" placeholder="counterparty note (optional)" size="40">
+  <button type="submit">Record</button>
+</form>
+
+<h2>Revoke this deal's mandate</h2>
+<form method="post" action="/deals/{{ deal_id }}/revoke">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit">Revoke mandate</button>
+</form>
+{% endblock %}

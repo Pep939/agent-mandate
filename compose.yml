@@ -1,0 +1,54 @@
+# Local development stack (C1): Postgres + wire gateway.
+#
+# Setup:
+#   uv run scripts/dev_gateway_keys.py     # writes .dev/keys/gateway/ (gitignored)
+#   # point the three MANDATE_*_FILE values below at the printed paths,
+#   # or override them in a local .env (not committed)
+#   docker compose up --build
+#
+# The gateway binds 127.0.0.1 by default; MANDATE_HOST=0.0.0.0 inside the
+# container makes it reachable through the published port for the
+# two-machine demo.
+#
+# NOTE: POSTGRES_PASSWORD "dev" is the documented local-dev convention
+# (see tests/integration/conftest.py) — a placeholder for a throwaway
+# container, never a real credential.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: mandate
+      POSTGRES_USER: mandate
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mandate -d mandate"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  gateway:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MANDATE_DB_URL: postgresql+psycopg://mandate:dev@db:5432/mandate
+      # Fill in after running scripts/dev_gateway_keys.py (key_id-based names):
+      MANDATE_IDENTITY_FILE: /keys/FILL_IN_IDENTITY.ed25519.json
+      MANDATE_CHAIN_KEY_FILE: /keys/FILL_IN_CHAIN.ed25519.json
+      MANDATE_PEERS_FILE: /keys/peers.json
+      MANDATE_HOST: 0.0.0.0
+      MANDATE_PORT: "8100"
+      MANDATE_ENVELOPE_MAX_AGE_SECONDS: "300"
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./.dev/keys/gateway:/keys:ro
+
+volumes:
+  pgdata:

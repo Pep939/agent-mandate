@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Deals</h1>
+<form method="post" action="/deals/new">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit">New deal</button>
+</form>
+<table>
+  <tr>
+    <th>Deal</th>
+    <th>State</th>
+    <th>Mandate</th>
+    <th>Committed (minor)</th>
+    <th>Open approvals</th>
+  </tr>
+  {% for d in deals %}
+  <tr>
+    <td><a href="/deals/{{ d.id }}">{{ d.id[:12] }}&hellip;</a></td>
+    <td><span class="badge">{{ d.state }}</span></td>
+    <td>{{ d.mandate_state }}</td>
+    <td>{{ d.committed_minor }}</td>
+    <td>{{ d.open_approvals }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">No deals yet.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

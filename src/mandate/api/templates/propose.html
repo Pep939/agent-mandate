@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Propose an action</h1>
+<p>Current deal state: <span class="badge">{{ deal_state }}</span></p>
+{% if error %}<p style="color:#a00">{{ error }}</p>{% endif %}
+<form method="post" action="/deals/{{ deal_id }}/propose">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <p>
+    Action:
+    <select name="action">
+      {% for a in actions %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+    </select>
+  </p>
+  <p>
+    Amount ({{ currency }}, whole units):
+    <input type="text" name="amount_dollars" placeholder="e.g. 500 (optional)">
+  </p>
+  <p>
+    Message to send (optional):<br>
+    <textarea name="content" rows="4" cols="70" placeholder="The text this action would send to the counterparty"></textarea><br>
+    <small>
+      {% if screening_on %}
+        Screened before it is sent: the content screen checks what it reveals and whether it carries instructions. It can only hold or stop the action, never permit one.
+      {% else %}
+        No content screen is configured, so any message here will be held for a person to read.
+      {% endif %}
+    </small>
+  </p>
+  <p>
+    Fields this message is meant to disclose (comma-separated, optional):
+    <input type="text" name="disclosure_fields" placeholder="e.g. invoice_total">
+    <br>
+    <small>
+      This mandate allows:
+      {% if disclosure_fields %}<code>{{ disclosure_fields | join(", ") }}</code>{% else %}nothing{% endif %}.
+    </small>
+  </p>
+  <button type="submit">Propose</button>
+</form>
+{% endblock %}

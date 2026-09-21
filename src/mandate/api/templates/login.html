@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sign in - Agent Mandate console</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: grid; place-items: center; height: 90vh; margin: 0; }
+    form { border: 1px solid #ccc; padding: 1.5rem 2rem; border-radius: 8px; display: grid; gap: .6rem; }
+    .err { color: #a00; }
+  </style>
+</head>
+<body>
+  <form method="post" action="/login">
+    <h1 style="margin:0">Agent Mandate console</h1>
+    {% if error %}<p class="err">{{ error }}</p>{% endif %}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="password" name="password" placeholder="Operator password" autofocus>
+    <button type="submit">Sign in</button>
+  </form>
+</body>
+</html>

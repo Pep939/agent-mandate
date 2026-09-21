@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Timeline</h1>
+<p>Deal state: <span class="badge">{{ deal_state }}</span></p>
+<table>
+  <tr>
+    <th>#</th>
+    <th>Type</th>
+    <th>Actor</th>
+    <th>Occurred</th>
+    <th>Payload</th>
+  </tr>
+  {% for e in events %}
+  <tr>
+    <td>{{ e.seq }}</td>
+    <td>{{ e.type }}</td>
+    <td>{{ e.actor }} / {{ e.actor_id }}</td>
+    <td>{{ e.occurred_at }}</td>
+    <td><code>{{ e.payload }}</code></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">No events recorded yet.</td></tr>
+  {% endfor %}
+</table>
+<p><a href="/deals/{{ deal_id }}">Back to deal</a></p>
+{% endblock %}

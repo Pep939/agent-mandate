@@ -1,0 +1,113 @@
+[project]
+name = "mandate"
+version = "0.1.0"
+description = "The contract layer between agents of different owners: signed, scoped, revocable mandates; a deterministic policy engine; a hash-chained evidence ledger"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Joe Campo" }]
+keywords = [
+    "ai-agents",
+    "agent-authorization",
+    "mandate",
+    "policy-engine",
+    "audit-log",
+    "evidence",
+    "ed25519",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "alembic>=1.13",
+    "cryptography>=50.0.1",
+    "fastapi>=0.115",
+    "itsdangerous>=2.2",
+    "jinja2>=3.1",
+    "psycopg[binary]>=3.1",
+    "pydantic>=2.9",
+    "python-multipart>=0.0.9",
+    "sqlalchemy>=2.0",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.urls]
+Homepage = "https://github.com/Pep939/agent-mandate"
+Repository = "https://github.com/Pep939/agent-mandate"
+Issues = "https://github.com/Pep939/agent-mandate/issues"
+Changelog = "https://github.com/Pep939/agent-mandate/blob/main/STATE.md"
+
+[project.optional-dependencies]
+# ADR-0016: the TypeSafe "Jev" content-screen adapter. Optional on purpose —
+# the core, the tests and the shadow pilot run on the fixture screen without it.
+screen = ["typesafe-sdk>=0.7"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pytest-cov>=7.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mandate"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "C", "B", "I", "UP", "S", "SIM", "RET", "TID", "RUF",
+]
+ignore = ["S101"]  # assert is fine in tests
+
+# FastAPI's Depends()/Form()/Query() in default arguments are the intended
+# dependency-injection idiom, not a mutable-default bug (B008).
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Form",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Header",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test secrets are ephemeral fixtures that prove secrets do not leak; they are
+# never real credentials and never appear in src/ (invariant 12).
+"tests/**" = ["S101", "S105", "S106"]
+# A table of human sentences; the strings are display text and stay on one line.
+"src/mandate/api/phrasing.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+packages = ["mandate"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["hypothesis.*", "typesafe_sdk", "typesafe_sdk.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"

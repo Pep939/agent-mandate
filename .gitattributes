@@ -1,0 +1,38 @@
+# Normalize every text file to LF in the repository.
+#
+# This is not cosmetic. The product signs canonical bytes (invariant 13), and a
+# CRLF/LF split between contributor machines is a determinism hazard as well as
+# a source of whole-file phantom diffs. Checkouts on Windows still work: Python,
+# pytest and the templates are all newline-agnostic on read.
+
+* text=auto eol=lf
+
+# Explicit, so a misdetection cannot flip one of these to CRLF.
+*.py        text eol=lf
+*.pyi       text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.toml      text eol=lf
+*.cfg       text eol=lf
+*.ini       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.sql       text eol=lf
+*.html      text eol=lf
+*.sh        text eol=lf
+*.lock      text eol=lf
+Dockerfile  text eol=lf
+.gitignore  text eol=lf
+.dockerignore text eol=lf
+
+# Binary — never touch these.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.gz   binary
+*.zip  binary
+*.whl  binary

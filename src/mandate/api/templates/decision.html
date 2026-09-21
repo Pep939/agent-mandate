@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Decision</h1>
+<p>Action: <strong>{{ action }}</strong></p>
+{% if amount_minor is defined and amount_minor is not none %}<p>Amount: {{ amount_minor }} {{ currency }}</p>{% endif %}
+<p style="font-size:1.2rem"><strong>{{ outcome }}</strong></p>
+<p>{{ sentence }}</p>
+{% if original_outcome is defined %}<p>Original decision: <strong>{{ original_outcome }}</strong> &mdash; {{ original_reason }}</p>{% endif %}
+<p>Current deal state: <span class="badge">{{ current_state }}</span></p>
+<p>
+  <a href="/deals/{{ deal_id }}">Back to deal</a>
+  &middot; <a href="/deals/{{ deal_id }}/propose">Propose another</a>
+</p>
+{% endblock %}

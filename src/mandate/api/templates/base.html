@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Mandate console</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ccc; padding-bottom: .5rem; margin-bottom: 1rem; }
+    table { border-collapse: collapse; margin: 1rem 0; }
+    td, th { border: 1px solid #ccc; padding: .3rem .6rem; }
+    .badge { padding: .1rem .4rem; border-radius: 4px; background: #eee; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Agent Mandate console</strong>
+    {% if authenticated %}
+    <form method="post" action="/logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">Log out</button>
+    </form>
+    {% endif %}
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
