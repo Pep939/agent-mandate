@@ -22,7 +22,7 @@ services:
       POSTGRES_USER: mandate
       POSTGRES_PASSWORD: dev
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -46,7 +46,7 @@ services:
       MANDATE_PORT: "8100"
       MANDATE_ENVELOPE_MAX_AGE_SECONDS: "300"
     ports:
-      - "8100:8100"
+      - "127.0.0.1:8100:8100"
     volumes:
       - ./.dev/keys/gateway:/keys:ro
 

@@ -9,8 +9,8 @@
 >
 > Agent Mandate makes that provable. A human issues a signed, scoped, **revocable**
 > mandate; a deterministic engine checks every action against it; every decision
-> lands in an append-only, hash-chained ledger either side can export and verify
-> without trusting the other.
+> lands in an append-only, hash-chained ledger that either side can export and a
+> third party can verify against the signer's public key.
 
 > [!WARNING]
 > **v0.1, research-grade. Do not deploy this to protect anything real yet.**
@@ -18,6 +18,16 @@
 > gaps are tracked by decision — G1 mitigated but not closed, G2 and G3 still open. They
 > are named in `docs/threat-model.md` and `SECURITY.md` rather than hidden. It is
 > published to be argued with.
+
+> [!CAUTION]
+> **Known open defect in the verifier, found 2026-09-21 — do not rely on
+> `verify_ledger.py` as an independent check yet.** `verify_bundle()` reads the
+> public key out of the same bundle it is verifying, so a bundle fabricated with
+> an attacker's own keypair passes: the CLI prints `VERIFIED (18/18 checks
+> passed)` and exits 0. The hash chain and the signatures are sound; what is
+> missing is any binding to a key the verifier independently trusts. Until
+> `verify_bundle` takes the expected key as a required argument, verification
+> only proves a bundle is *internally* consistent. Tracked as issue #1.
 
 When two agents act for two different people or businesses, someone has to answer
 four questions before anything binding happens: *who authorized this, what exactly
