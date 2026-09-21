@@ -1,8 +1,10 @@
 """Login / logout (ADR-0011).
 
 The operator password is compared in constant time (security.check_password).
-On success the anonymous session is flipped to authenticated in place; on
-failure the login form re-renders with a 401 and the session stays anonymous.
+On success the session is replaced by a fresh authenticated one under a new
+token — never flipped in place, which would leave a pre-planted session token
+valid (session fixation). On failure the login form re-renders with a 401 and
+the session stays anonymous.
 """
 
 from __future__ import annotations

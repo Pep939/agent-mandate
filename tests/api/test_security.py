@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import base64
+
 from fastapi.testclient import TestClient
 
 from mandate.api.app import build_state, create_app
+from mandate.api.security import COOKIE_NAME
 from mandate.ledger.store import InMemoryLedgerStore
 from tests.api.conftest import PASSWORD, SESSION_SECRET
 from tests.api.support import csrf_token, first_deal_id, login
@@ -116,3 +119,93 @@ def test_secrets_never_leak_into_response_bodies():
         assert _CANARY_SECRET not in page, "session secret leaked into a page"
         assert SESSION_SECRET not in page
         assert PASSWORD not in page
+
+
+def test_login_rotates_the_session_token_and_the_csrf_token():
+    """Session fixation: a token planted before login must not survive it.
+
+    Cookies are not port-scoped, so any page on 127.0.0.1 can set
+    `mandate_session`. If login upgraded that token in place, the planter would
+    own the operator's authenticated session.
+    """
+    app = create_app(
+        state=build_state(
+            store=InMemoryLedgerStore(),
+            password=PASSWORD,
+            session_secret=SESSION_SECRET,
+            seed=True,
+        )
+    )
+    state = app.state.mandate
+    with TestClient(app, base_url="http://test") as c:
+        html = c.get("/login").text
+        planted = c.cookies[COOKIE_NAME]
+        planted_csrf = state.sessions[planted].csrf_token
+
+        response = c.post(
+            "/login",
+            data={"password": PASSWORD, "csrf_token": csrf_token(html)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+
+        after = c.cookies[COOKIE_NAME]
+
+    assert after != planted, "login must mint a new session token"
+    assert planted not in state.sessions, "the pre-login session must be discarded"
+    assert state.sessions[after].authenticated is True
+    assert state.sessions[after].csrf_token != planted_csrf, "the CSRF token must rotate too"
+
+
+def test_a_session_token_planted_before_login_is_not_authenticated_afterwards():
+    app = create_app(
+        state=build_state(
+            store=InMemoryLedgerStore(),
+            password=PASSWORD,
+            session_secret=SESSION_SECRET,
+            seed=True,
+        )
+    )
+    state = app.state.mandate
+    with TestClient(app, base_url="http://test") as c:
+        html = c.get("/login").text
+        planted = c.cookies[COOKIE_NAME]
+        c.post(
+            "/login",
+            data={"password": PASSWORD, "csrf_token": csrf_token(html)},
+            follow_redirects=False,
+        )
+
+    # The attacker still holds `planted`; it must grant nothing.
+    assert state.sessions.get(planted) is None
+    with TestClient(app, base_url="http://test") as attacker:
+        attacker.cookies.set(COOKIE_NAME, planted)
+        response = attacker.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/login"
+
+
+def test_csrf_token_does_not_encode_the_session_token():
+    """`itsdangerous` signs, it does not encrypt.
+
+    The CSRF token is rendered into a hidden field on every page. If its payload
+    were the session token, anyone who saw page source, a screenshot or a proxy
+    log would recover the session cookie and `httponly` would mean nothing.
+    """
+    app = create_app(
+        state=build_state(
+            store=InMemoryLedgerStore(),
+            password=PASSWORD,
+            session_secret=SESSION_SECRET,
+            seed=True,
+        )
+    )
+    with TestClient(app, base_url="http://test") as c:
+        html = c.get("/login").text
+        token = csrf_token(html)
+        session_cookie = c.cookies[COOKIE_NAME]
+
+    payload = token.split(".")[0]
+    decoded = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+    assert session_cookie.encode() not in decoded
+    assert session_cookie not in token

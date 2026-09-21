@@ -88,7 +88,11 @@ def create_app(
             token = security.new_anonymous_session(state)
         request.state.mandate_token = token
         response = await call_next(request)
-        security.set_session_cookie(response, token)
+        # Re-read: a route may have rotated the session (login does, to defeat
+        # session fixation). Setting the cookie from the token captured above
+        # would leave the browser holding a token that no longer exists.
+        current = getattr(request.state, "mandate_token", token)
+        security.set_session_cookie(response, current)
         return response
 
     app.include_router(auth.router)

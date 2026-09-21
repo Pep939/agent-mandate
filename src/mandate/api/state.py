@@ -19,8 +19,14 @@ from mandate.screen.protocol import ContentScreen
 
 @dataclass
 class Session:
-    """One server-side session. `csrf_token` is a per-session synchronizer
-    token (regenerated on login); `authenticated` flips on successful login."""
+    """One server-side session.
+
+    `csrf_token` is a per-session synchronizer token over fresh random bytes —
+    never a function of the session token, which would publish the session
+    identifier in every rendered page. A successful login does not mutate a
+    session: it creates a new one under a new token and drops the old entry
+    (see `security.authenticate_session`), so `authenticated` is set at
+    construction, never flipped on a session an attacker could have planted."""
 
     csrf_token: str
     authenticated: bool = False
