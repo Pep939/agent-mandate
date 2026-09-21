@@ -67,42 +67,67 @@ Gap.
 
 ## How this relates to AP2 and A2A
 
-Verified against the published specifications on 2026-09-13. Recheck before
-citing — this section ages fast.
+Verified against the published specifications on 2026-09-21: all 11 pages of
+the AP2 specification site, plus the A2A specification and its docs tree. AP2's
+`main` had not moved since 2026-04-29 at that point. Recheck before citing —
+this section ages fast.
 
 **[AP2](https://github.com/google-agentic-commerce/AP2)** (Agent Payments
 Protocol, Google-led, Apache-2.0) defines an Agent Authorization model with a
 concept it also calls a *Mandate*: a user approves Mandate Content on a Trusted
-Surface, open Mandates carry an extensible `constraints` array, mandate chains
-narrow and never broaden, unknown constraints must fail evaluation, and a
-Verifier returns a signed Mandate Receipt. That is substantially the same shape
-as this project's authority record, arrived at independently. AP2 says the model
-"could be applied more generally in the future" but currently scopes it to
-payments and checkout.
+Surface, open Mandates carry an extensible `constraints` array (required, in the
+open-mandate schemas), and a Verifier returns a signed Mandate Receipt. Its
+verification rules require that claims from the open mandate appear *unchanged*
+in the closed one and that every constraint evaluates successfully, with
+"any unknown Constraints MUST be treated as failing evaluation" — so a closed
+mandate cannot carry more authority than its parent. AP2 never uses the word
+"narrow", but that is the effect, and it is substantially the same shape as this
+project's authority record, arrived at independently. AP2 says the model "could
+be applied more generally in the future" but currently scopes it to payments and
+checkout.
 
 Two things AP2's authorization model does **not** specify:
 
-1. **Revocation.** AP2 mandates expire (`exp`); there is no mechanism to withdraw
-   one before expiry, and no notion of a revoked parent invalidating its
-   descendants. This repo treats revocation as invariant 7 — immediate, and
-   cascading down the delegation chain.
-2. **An append-only evidence chain.** AP2 has signed receipts and a dispute
-   evidence section, not a hash-chained per-deal ledger. This repo produces an
-   evidence bundle whose summary is signed by the chain key, so a re-export that
-   drops the tail and recomputes every hash still fails verification
+1. **Revocation.** AP2 defines an `exp` field on all four mandate types and
+   recommends setting it "to the smallest value that will allow the Shopping
+   Agent to complete the assigned task" — but `exp` is not in the `required`
+   set of any mandate schema, there is no mechanism to withdraw a mandate before
+   it expires, and no notion of a revoked parent invalidating its descendants.
+   AP2's own tracker agrees: issue
+   [#45](https://github.com/google-agentic-commerce/AP2/issues/45) has been open
+   since 2025-09-18, and its latest comment states that revocation is agreed to
+   be necessary but no concrete in-protocol mechanism has been proposed. (AP2's
+   sample code ships a `revoke_payment_credential` tool; that revokes a payment
+   token, not a mandate, and appears nowhere in the specification.) This repo
+   treats revocation as invariant 7 — immediate, and cascading down the
+   delegation chain.
+2. **An append-only evidence chain.** AP2 does hash-link the artifacts within a
+   single transaction: `sd_hash` binds the closed mandate to the open one,
+   `checkout_hash` binds payment to checkout, and a receipt's `reference` is a
+   hash of the closed mandate. What it does not define is a *ledger*. AP2 states
+   that retention and retrieval requirements are "outside the scope of this
+   specification", and dispute evidence is scattered across up to five roles
+   with no single authoritative record and no retention duty. This repo produces
+   an evidence bundle whose summary is signed by the chain key, so a re-export
+   that drops the tail and recomputes every hash still fails verification
    (ADR-0015).
 
 This project also models a full deal lifecycle — 18 states, change orders,
 disputes, acceptance windows, spend cumulative across the whole deal — where AP2
 is scoped to a single checkout.
 
-**[A2A](https://a2a-protocol.org/)** (Agentic AI Foundation since 2026-08-27)
-solves agent discovery, task routing and lifecycle. It declares how to transmit
-credentials but does not specify how to downscope them, and defines no native
-scoped, revocable, human-granted authority credential. A2A issue
+**[A2A](https://a2a-protocol.org/)** (donated to the Linux Foundation, and
+accepted as a Growth Stage project at the Linux-Foundation-directed Agentic AI
+Foundation on 2026-08-27) solves agent discovery, task routing and lifecycle. It
+declares how to transmit credentials but says itself, in §7.6.4, that it "does
+not define the scope, representation, validity, or revocation semantics of the
+authorization decision or credential" — and it defines no native scoped,
+revocable, human-granted authority credential. Elsewhere it advises that agents
+*should* implement credential revocation, which is guidance to implementers with
+no protocol mechanism behind it. A2A issue
 [#1713](https://github.com/a2aproject/A2A/issues/1713) tracks the cross-org
-first-contact accountability gap; it remains open with no maintainer engagement
-as of 2026-09-13.
+first-contact accountability gap; as of 2026-09-21 it is still open after 32
+comments, none from an account GitHub identifies as a maintainer.
 
 **Known interoperability gap in this repo:** signing here is Ed25519 over a
 custom canonical JSON form. The surrounding ecosystem has converged on SD-JWT
